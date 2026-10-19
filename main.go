@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -11,7 +12,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/cloudflare/circl/kem"
 	"github.com/cloudflare/circl/kem/mlkem/mlkem768"
@@ -20,7 +20,6 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/hkdf"
-	"golang.org/x/term"
 )
 
 // BundleRecord represents a saved encrypted cipher bundle
@@ -81,21 +80,21 @@ func main() {
 			runVaultDashboard(state)
 
 		case "Unlock with Seed Phrase":
-			fmt.Print("Enter your 12 or 24-word seed phrase (input is hidden): ")
-			byteSeed, err := term.ReadPassword(int(syscall.Stdin))
-			fmt.Println() 
-			
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print("Enter your 12 or 24-word seed phrase: ")
+			line, err := reader.ReadString('\n')
 			if err != nil {
 				fmt.Println("\n[Error] Failed to read seed phrase.")
 				continue
 			}
-			
-			mnemonic := strings.TrimSpace(strings.ToLower(string(byteSeed)))
+
+			// Normalize: lowercase, collapse extra whitespace, strip \r\n
+			mnemonic := strings.Join(strings.Fields(strings.ToLower(line)), " ")
 			if !bip39.IsMnemonicValid(mnemonic) {
 				fmt.Println("[Error] Invalid seed phrase. Please check your words.")
 				continue
 			}
-			
+
 			state, err := deriveKeysFromMnemonic(mnemonic)
 			if err != nil {
 				fmt.Printf("[Error] Key derivation failed: %v\n", err)
